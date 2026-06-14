@@ -65,7 +65,14 @@
     color: var(--ink);
     line-height: 1.5;
   }
-  .wrap { max-width: 660px; margin: 0 auto; padding: 32px 20px 64px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 20px 64px; }
+  .layout-cols { display: flex; flex-direction: column; }
+  .layout-left, .layout-right { width: 100%; }
+  @media (min-width: 900px) {
+    .layout-cols { flex-direction: row; align-items: flex-start; gap: 24px; }
+    .layout-left { flex: 1; min-width: 0; }
+    .layout-right { flex: 1; min-width: 0; }
+  }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 24px; }
   .panel {
@@ -151,6 +158,9 @@
   <h1>Prayer Card Tiler</h1>
   <p class="sub">Turn a 2-page prayer-card PDF (front&nbsp;image&nbsp;+ back&nbsp;prayer) into a print-ready, n-up duplex sheet on US&nbsp;Letter — for printing your own prayer cards at home. Works with any 2-page card PDF.</p>
 
+  <div class="layout-cols">
+  <div class="layout-left">
+
   <div class="panel">
     <div id="drop">
       <strong>Drop a 2-page PDF here</strong><br>
@@ -195,6 +205,9 @@
 
   <div id="msg"></div>
 
+  </div><!-- .layout-left -->
+  <div class="layout-right">
+
   <div class="panel" id="summary">
     <div class="big" style="margin-bottom:12px;">Preview</div>
     <iframe id="preview" title="Tiled PDF preview"></iframe>
@@ -209,6 +222,9 @@
       <a id="dlBtn" class="btn-dl" href="#" download>Download PDF</a>
     </div>
   </div>
+
+  </div><!-- .layout-right -->
+  </div><!-- .layout-cols -->
 
   <div class="panel" id="testPanel">
     <div class="big" style="margin-bottom:12px;">Self-tests</div>
