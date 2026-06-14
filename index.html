@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Prayer Card Tiler — print prayer cards n-up for duplex at home</title>
+<meta name="description" content="Free, private, in-browser tool that tiles a 2-page prayer-card PDF (front image + back prayer) many-up on US Letter for double-sided home printing. Nothing is uploaded — it all runs in your browser.">
+<meta name="keywords" content="prayer card, holy card, saint cards, n-up, imposition, duplex printing, double-sided, PDF tiler, print prayer cards at home, card template">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://breckenedge.github.io/pdf-prayer-card-maker/">
+
+<!-- Open Graph / social -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Prayer Card Tiler — print prayer cards n-up for duplex">
+<meta property="og:description" content="Tile a 2-page prayer-card PDF many-up on US Letter for double-sided home printing. 100% client-side — nothing is uploaded.">
+<meta property="og:url" content="https://breckenedge.github.io/pdf-prayer-card-maker/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Prayer Card Tiler">
+<meta name="twitter:description" content="Tile a 2-page prayer-card PDF many-up on US Letter for double-sided home printing. 100% client-side.">
+
+<!-- Structured data for rich search results -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Prayer Card Tiler",
+  "url": "https://breckenedge.github.io/pdf-prayer-card-maker/",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any (runs in a web browser)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Tiles a 2-page prayer-card PDF (front image + back prayer) many-up on US Letter for double-sided home printing. Fully client-side; no files are uploaded.",
+  "isAccessibleForFree": true
+}
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --accent: #3b5bdb;
+    --accent-dark: #2f49b0;
+    --border: #d7dbe2;
+    --ok: #2b8a3e;
+    --err: #c92a2a;
+    --warn: #b8860b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 660px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  #drop {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.drag { border-color: var(--accent); background: #eef1fd; color: var(--accent-dark); }
+  #drop strong { color: var(--ink); }
+  #fileInfo { margin-top: 12px; font-size: .92rem; color: var(--ink); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  label { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .row { margin-top: 14px; }
+  .btnrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 11px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-primary:disabled { background: #aeb7d6; cursor: not-allowed; }
+  .btn-ghost { background: #eef0f5; color: var(--ink); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: #e3e6ee; }
+  a.btn-dl {
+    display: inline-block;
+    background: var(--ok);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 11px 18px;
+    border-radius: 8px;
+  }
+  a.btn-dl:hover { filter: brightness(.94); }
+  #summary, #testPanel { display: none; }
+  #summary.show, #testPanel.show { display: block; }
+  #preview { width: 100%; height: 540px; border: 1px solid var(--border); border-radius: 8px; background: #fff; margin-bottom: 16px; }
+  #summary dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
+  #summary dt { color: var(--muted); font-weight: 600; }
+  #summary dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .big { font-size: 1.15rem; font-weight: 700; }
+  #msg { margin-top: 14px; font-size: .92rem; min-height: 1.2em; }
+  #msg.err { color: var(--err); }
+  #msg.ok { color: var(--ok); }
+  #msg.warn { color: var(--warn); }
+  .warnbox { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #fff7e0; color: #7a5b00; border: 1px solid #f0d98a; font-size: .9rem; }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+  .footer { font-size: .78rem; color: var(--muted); text-align: center; margin-top: 8px; }
+  .test { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: .88rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .test .tag { flex: 0 0 auto; font-weight: 700; }
+  .test.pass .tag { color: var(--ok); }
+  .test.fail .tag { color: var(--err); }
+  .test .detail { color: var(--muted); }
+  .test-summary { font-weight: 700; margin: 4px 0 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Prayer Card Tiler</h1>
+  <p class="sub">Turn a 2-page prayer-card PDF (front&nbsp;image&nbsp;+ back&nbsp;prayer) into a print-ready, n-up duplex sheet on US&nbsp;Letter — for printing your own prayer cards at home. Works with any 2-page card PDF.</p>
+
+  <div class="panel">
+    <div id="drop">
+      <strong>Drop a 2-page PDF here</strong><br>
+      or click to choose a file
+      <div id="fileInfo"></div>
+    </div>
+    <input id="fileInput" type="file" accept="application/pdf,.pdf" hidden>
+  </div>
+
+  <div class="panel">
+    <div class="grid2">
+      <div>
+        <label for="cardW">Card width (in)</label>
+        <input id="cardW" type="number" min="0.25" step="0.05" value="2.5">
+      </div>
+      <div>
+        <label for="cardH">Card height (in)</label>
+        <input id="cardH" type="number" min="0.25" step="0.05" value="4.25">
+      </div>
+    </div>
+    <div class="row grid2">
+      <div>
+        <label for="printMargin">Printer margin (in)</label>
+        <input id="printMargin" type="number" min="0" step="0.05" value="0.25">
+      </div>
+      <div>
+        <label for="gutter">Gutter between cards (in)</label>
+        <input id="gutter" type="number" min="0" step="0.0625" value="0.125">
+      </div>
+    </div>
+    <p class="hint">Printer margin: most consumer printers can't print within ~0.25" of the paper edge — set 0 only for a borderless printer. Gutter: blank space between adjacent cards for cutting room (set 0 to butt cards edge-to-edge).</p>
+    <div class="row">
+      <label for="outName">Output filename (optional)</label>
+      <input id="outName" type="text" placeholder="cards-tiled.pdf">
+    </div>
+    <p class="hint">Page 1 of your PDF is the card front, page 2 is the back. The back sheet is mirrored horizontally so cards register when you flip the printed sheet on its long edge (duplex, flip-on-long-edge).</p>
+  </div>
+
+  <div class="row btnrow">
+    <button id="testBtn" class="btn-ghost">Run Tests</button>
+  </div>
+
+  <div id="msg"></div>
+
+  <div class="panel" id="summary">
+    <div class="big" style="margin-bottom:12px;">Preview</div>
+    <iframe id="preview" title="Tiled PDF preview"></iframe>
+    <dl>
+      <dt>Card size</dt><dd id="sCard"></dd>
+      <dt>Sheet</dt><dd id="sSheet"></dd>
+      <dt>Grid</dt><dd id="sGrid"></dd>
+      <dt>Margins</dt><dd id="sMargin"></dd>
+    </dl>
+    <div id="sWarn" class="warnbox" style="display:none;"></div>
+    <div class="row">
+      <a id="dlBtn" class="btn-dl" href="#" download>Download PDF</a>
+    </div>
+  </div>
+
+  <div class="panel" id="testPanel">
+    <div class="big" style="margin-bottom:12px;">Self-tests</div>
+    <div id="testSummary" class="test-summary"></div>
+    <div id="testResults"></div>
+  </div>
+
+  <p class="footer">100% client-side — your PDF never leaves this browser.</p>
+</div>
+
+<script>
+"use strict";
+
+// ============================================================
+//  This script has three layers, in dependency order:
+//    1. Pure core   — geometry/layout, no DOM, no pdf-lib (testable anywhere).
+//    2. Composition — composePdf(PDFLib, opts): pdf-lib is INJECTED, returns bytes.
+//    3. Browser UI  — wired only when `document` exists; node skips it.
+//  A module.exports block at the bottom lets Node load every function with no
+//  stubs (see test/run.mjs). The browser uses the global `PDFLib` from the CDN.
+// ============================================================
+
+const PT = 72;                                   // points per inch
+const ASPECT_TOL  = 0.01;                         // 1% aspect-ratio tolerance
+
+// ============================================================
+//  1. Pure layout / geometry logic (exercised by self-tests)
+// ============================================================
+
+// Cards-per-sheet for one available area, cards upright, with a gutter between cards.
+// n cards + (n-1) gutters fit when n*(card+gutter) - gutter <= avail.
+function gridForSheet(availWin, availHin, cardWin, cardHin, gutterIn) {
+  const g = gutterIn > 0 ? gutterIn : 0;
+  const cols = Math.max(0, Math.floor((availWin + g) / (cardWin + g)));
+  const rows = Math.max(0, Math.floor((availHin + g) / (cardHin + g)));
+  return { cols, rows, count: cols * rows };
+}
+
+// Try portrait (8.5×11) and landscape (11×8.5); pick more cards, prefer portrait on
+// ties. The grid must fit inside the printable area (sheet minus the printer margin
+// on every edge); the block is then centered on the full sheet, so the actual margins
+// are always >= the printer margin.
+function computeLayout(cardWin, cardHin, printMarginIn, gutterIn) {
+  const pm = printMarginIn > 0 ? printMarginIn : 0;
+  const gut = gutterIn > 0 ? gutterIn : 0;
+  const fit = (sheetWin, sheetHin, orient) => {
+    const g = gridForSheet(sheetWin - 2 * pm, sheetHin - 2 * pm, cardWin, cardHin, gut);
+    return { orient, cols: g.cols, rows: g.rows, count: g.count, sheetWin, sheetHin };
+  };
+  const p = fit(8.5, 11, 'portrait');
+  const l = fit(11, 8.5, 'landscape');
+  const best = l.count > p.count ? l : p;   // tie -> portrait
+  if (best.count < 1) return null;
+  const blockW = best.cols * cardWin + (best.cols - 1) * gut;   // grid block incl. gutters
+  const blockH = best.rows * cardHin + (best.rows - 1) * gut;
+  return {
+    orient: best.orient, cols: best.cols, rows: best.rows, count: best.count,
+    cardWin, cardHin, sheetWin: best.sheetWin, sheetHin: best.sheetHin,
+    printMarginIn: pm, gutterIn: gut,
+    marginXin: (best.sheetWin - blockW) / 2,
+    marginYin: (best.sheetHin - blockH) / 2
+  };
+}
+
+// Back-page column mirror for long-edge duplex flipping.
+function mirrorCol(c, cols) { return cols - 1 - c; }
+
+// True when source page aspect ratio differs from the target card by > tolerance.
+function aspectMismatch(pageW, pageH, cardWin, cardHin) {
+  const pageAR = pageW / pageH;
+  const cardAR = cardWin / cardHin;
+  return Math.abs(pageAR - cardAR) / cardAR > ASPECT_TOL;
+}
+
+// Resolve everything needed to place cards, in POINTS: page size, card size, and the
+// bottom-left of every front and back cell. Back columns are mirrored for long-edge
+// duplex flipping. Returns null if no card fits. Pure — no pdf-lib.
+function planSheet(cardWin, cardHin, printMarginIn, gutterIn) {
+  const layout = computeLayout(cardWin, cardHin, printMarginIn, gutterIn);
+  if (!layout) return null;
+  const sheetW = layout.sheetWin * PT, sheetH = layout.sheetHin * PT;
+  const cardW = cardWin * PT, cardH = cardHin * PT;
+  const mx = layout.marginXin * PT, my = layout.marginYin * PT;
+  const pitchX = (cardWin + layout.gutterIn) * PT;
+  const pitchY = (cardHin + layout.gutterIn) * PT;
+  const cellX = c => mx + c * pitchX;
+  const cellY = r => my + r * pitchY;
+  const frontCells = [], backCells = [];
+  for (let r = 0; r < layout.rows; r++)
+    for (let c = 0; c < layout.cols; c++) {
+      frontCells.push({ x: cellX(c), y: cellY(r), w: cardW, h: cardH });
+      backCells.push({ x: cellX(mirrorCol(c, layout.cols)), y: cellY(r), w: cardW, h: cardH });
+    }
+  return { layout, sheetW, sheetH, cardW, cardH, frontCells, backCells };
+}
+
+function aspectMsg(side, pw, ph, cardWin, cardHin) {
+  const pageAR = (pw / ph).toFixed(3), cardAR = (cardWin / cardHin).toFixed(3);
+  return side + ' page aspect ' + pageAR + ' ≠ card aspect ' + cardAR +
+         ' — content centered without stretching (you may see blank edges).';
+}
+
+// ============================================================
+//  2. Composition — pdf-lib is INJECTED, never read from a global, so this runs
+//     identically in the browser (CDN global) and in Node (npm import).
+// ============================================================
+
+// Render an embedded page into a tile of exactly (cardW × cardH) points whose
+// bottom-left is (cx,cy). Content is scaled to fit, preserving aspect, centered.
+function drawCard(page, emb, cx, cy, cardW, cardH) {
+  const s = Math.min(cardW / emb.width, cardH / emb.height);
+  const dw = emb.width * s, dh = emb.height * s;
+  page.drawPage(emb, { x: cx + (cardW - dw) / 2, y: cy + (cardH - dh) / 2, width: dw, height: dh });
+}
+
+// Build the 2-page tiled PDF. `PDFLib` is the pdf-lib module object ({PDFDocument, rgb}).
+// `opts` = { inputBytes, cardWin, cardHin, printMarginIn, gutterIn }. Resolves to
+// { bytes, layout, warnings }. Throws on bad input (too-large card / <2 pages).
+async function composePdf(PDFLib, opts) {
+  const { PDFDocument } = PDFLib;
+  const { inputBytes, cardWin, cardHin } = opts;
+  const printMarginIn = opts.printMarginIn >= 0 ? opts.printMarginIn : 0;
+  const gutterIn = opts.gutterIn >= 0 ? opts.gutterIn : 0;
+  if (!(cardWin > 0) || !(cardHin > 0)) throw new Error('Card dimensions must be positive.');
+
+  const plan = planSheet(cardWin, cardHin, printMarginIn, gutterIn);
+  if (!plan) throw new Error('Card is too large to fit on a Letter sheet (with this printer margin) in either orientation.');
+
+  const src = await PDFDocument.load(inputBytes);
+  if (src.getPageCount() < 2) throw new Error('PDF must have at least 2 pages (front + back).');
+
+  const out = await PDFDocument.create();
+  const [frontEmb, backEmb] = await out.embedPdf(src, [0, 1]);
+
+  // Aspect-ratio check (warn only — content is centered, never stretched).
+  const warnings = [];
+  if (aspectMismatch(frontEmb.width, frontEmb.height, cardWin, cardHin))
+    warnings.push(aspectMsg('Front', frontEmb.width, frontEmb.height, cardWin, cardHin));
+  if (aspectMismatch(backEmb.width, backEmb.height, cardWin, cardHin))
+    warnings.push(aspectMsg('Back', backEmb.width, backEmb.height, cardWin, cardHin));
+
+  const { sheetW, sheetH, cardW, cardH, frontCells, backCells, layout } = plan;
+
+  // Page 1 — front.
+  const p1 = out.addPage([sheetW, sheetH]);
+  for (const cell of frontCells) drawCard(p1, frontEmb, cell.x, cell.y, cardW, cardH);
+
+  // Page 2 — back, columns mirrored for long-edge duplex flip.
+  const p2 = out.addPage([sheetW, sheetH]);
+  for (const cell of backCells) drawCard(p2, backEmb, cell.x, cell.y, cardW, cardH);
+
+  const bytes = await out.save();
+  return { bytes, layout, warnings };
+}
+
+// ============================================================
+//  Self-tests
+// ============================================================
+
+function runTests() {
+  const T = [];
+  const assert = (name, cond, detail = '') => T.push({ name, pass: !!cond, detail: cond ? '' : detail });
+  const eq = (name, got, exp) => assert(name, got === exp, 'expected ' + exp + ', got ' + got);
+  const approx = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
+
+  // --- Grid calculation, both orientations, common card sizes (no margin/gutter) ---
+  eq('2.5×4.25 portrait  count', gridForSheet(8.5, 11, 2.5, 4.25, 0).count, 6);
+  eq('2.5×4.25 landscape count', gridForSheet(11, 8.5, 2.5, 4.25, 0).count, 8);
+  let L = computeLayout(2.5, 4.25, 0, 0);
+  eq('2.5×4.25 picks landscape', L.orient, 'landscape');
+  eq('2.5×4.25 grid', L.cols + '×' + L.rows + '=' + L.count, '4×2=8');
+
+  eq('4×6 portrait  count', gridForSheet(8.5, 11, 4, 6, 0).count, 2);
+  eq('4×6 landscape count', gridForSheet(11, 8.5, 4, 6, 0).count, 2);
+  L = computeLayout(4, 6, 0, 0);
+  eq('4×6 tie prefers portrait', L.orient, 'portrait');
+  eq('4×6 grid', L.cols + '×' + L.rows + '=' + L.count, '2×1=2');
+
+  eq('2×3.5 portrait  count', gridForSheet(8.5, 11, 2, 3.5, 0).count, 12);
+  eq('2×3.5 landscape count', gridForSheet(11, 8.5, 2, 3.5, 0).count, 10);
+  L = computeLayout(2, 3.5, 0, 0);
+  eq('2×3.5 picks portrait', L.orient, 'portrait');
+  eq('2×3.5 grid', L.cols + '×' + L.rows + '=' + L.count, '4×3=12');
+
+  // --- Printer-margin-aware layout ---
+  L = computeLayout(2.5, 4.25, 0.25, 0);
+  eq('2.5×4.25 @0.25" margin picks portrait', L.orient, 'portrait');
+  eq('2.5×4.25 @0.25" grid', L.cols + '×' + L.rows + '=' + L.count, '3×2=6');
+  assert('actual side margin >= printer margin', L.marginXin >= 0.25 - 1e-9, 'marginX=' + L.marginXin);
+  assert('actual top margin >= printer margin', L.marginYin >= 0.25 - 1e-9, 'marginY=' + L.marginYin);
+  eq('larger margin reduces count vs 0-margin', computeLayout(2.5, 4.25, 0.5, 0).count <= 6, true);
+
+  // --- Gutters between cards ---
+  eq('gutter shrinks fit: 0.5" gutter on 2×3.5', gridForSheet(8.5, 11, 2, 3.5, 0.5).count, 6);   // 3×2=6 vs 4×3=12 at 0 gutter
+  let Lg = computeLayout(2.5, 4.25, 0.25, 0.125);
+  eq('2.5×4.25 @0.25"+0.125g still 3×2', Lg.cols + '×' + Lg.rows + '=' + Lg.count, '3×2=6');
+  assert('gutter widens block, shrinks margins', approx(Lg.marginXin, (8.5 - (3 * 2.5 + 2 * 0.125)) / 2), 'marginX=' + Lg.marginXin);
+  assert('gutter never pushes cards past printer margin', Lg.marginXin >= 0.25 - 1e-9 && Lg.marginYin >= 0.25 - 1e-9);
+  eq('larger gutter cannot increase count', computeLayout(2, 3.5, 0, 1).count <= computeLayout(2, 3.5, 0, 0).count, true);
+
+  // --- planSheet: cell positions in points ---
+  const plan = planSheet(2.5, 4.25, 0.25, 0.125);
+  eq('plan sheet size', plan.sheetW + '×' + plan.sheetH, '612×792');
+  eq('plan card size', plan.cardW + '×' + plan.cardH, '180×306');
+  eq('plan front cell count', plan.frontCells.length, 6);
+  eq('plan back cell count', plan.backCells.length, 6);
+  // Front col 0 sits where back col 2 sits (3 cols, mirrored): same x.
+  assert('plan back is column-mirrored', approx(plan.backCells[0].x, plan.frontCells[2].x), 'back0.x=' + plan.backCells[0].x + ' front2.x=' + plan.frontCells[2].x);
+  // Margins are symmetric: bottom row and top row equidistant from the sheet edges.
+  const botY = plan.frontCells[0].y, topY = plan.frontCells[plan.frontCells.length - 1].y;
+  assert('plan vertical margins symmetric', approx(botY, plan.sheetH - (topY + plan.cardH)), 'bottom=' + botY + ' topGap=' + (plan.sheetH - (topY + plan.cardH)));
+
+  // --- Back-page mirror logic ---
+  eq('mirror col 0 of 4', mirrorCol(0, 4), 3);
+  eq('mirror col 3 of 4', mirrorCol(3, 4), 0);
+  eq('mirror col 1 of 4', mirrorCol(1, 4), 2);
+  eq('mirror is self-inverse', mirrorCol(mirrorCol(1, 5), 5), 1);
+
+  // --- Aspect-ratio mismatch detection ---
+  assert('aspect match: 180×306 vs 2.5×4.25', !aspectMismatch(180, 306, 2.5, 4.25), 'should match');
+  assert('aspect match: exact', !aspectMismatch(2.5, 4.25, 2.5, 4.25), 'should match');
+  assert('aspect mismatch: square vs 2.5×4.25', aspectMismatch(300, 300, 2.5, 4.25), 'should flag');
+  assert('aspect mismatch: 4×6 page vs 2.5×4.25 card', aspectMismatch(288, 432, 2.5, 4.25), 'should flag');
+  assert('aspect within tolerance not flagged', !aspectMismatch(2.51, 4.25, 2.5, 4.25), 'should pass tol');
+
+  return T;
+}
+
+// ============================================================
+//  Pure formatting utils (no DOM)
+// ============================================================
+
+function trim(n) { return (Math.round(n * 1000) / 1000).toString(); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+function suggestName(orig) { return orig.replace(/\.pdf$/i, '').replace(/[^\w\-]+/g, '_') + '-tiled.pdf'; }
+
+// ============================================================
+//  Node entry point — lets test/run.mjs load every function with NO stubs.
+//  (In the browser `module` is undefined, so this is skipped.)
+// ============================================================
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    PT, ASPECT_TOL,
+    gridForSheet, computeLayout, mirrorCol, aspectMismatch, planSheet,
+    drawCard, composePdf, aspectMsg, runTests,
+    trim, escapeHtml, fmtBytes, suggestName
+  };
+}
+
+// ============================================================
+//  3. Browser UI — wired only when a DOM exists (skipped in Node).
+// ============================================================
+
+if (typeof document !== 'undefined') initUI();
+
+function initUI() {
+  let selectedFile = null;   // the chosen File
+  let currentBytes = null;   // its ArrayBuffer, cached so previews don't re-read disk
+  let lastUrl = null;        // active blob URL (shared by preview iframe + download)
+  let renderToken = 0;       // guards against out-of-order async renders
+
+  const dropEl   = document.getElementById('drop');
+  const fileInput= document.getElementById('fileInput');
+  const fileInfo = document.getElementById('fileInfo');
+  const cardWEl  = document.getElementById('cardW');
+  const cardHEl  = document.getElementById('cardH');
+  const printMarginEl = document.getElementById('printMargin');
+  const gutterEl = document.getElementById('gutter');
+  const outNameEl= document.getElementById('outName');
+  const testBtn  = document.getElementById('testBtn');
+  const msgEl    = document.getElementById('msg');
+  const summaryEl= document.getElementById('summary');
+  const previewEl= document.getElementById('preview');
+  const dlBtn    = document.getElementById('dlBtn');
+
+  const rerender = debounce(update, 300);
+
+  dropEl.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+  testBtn.addEventListener('click', showTests);
+
+  // Any setting change re-renders the preview (debounced); the filename only relabels
+  // the download, so it doesn't need a recompute.
+  [cardWEl, cardHEl, printMarginEl, gutterEl].forEach(el => el.addEventListener('input', rerender));
+  outNameEl.addEventListener('input', () => { if (lastUrl) dlBtn.download = downloadName(); });
+
+  ['dragenter', 'dragover'].forEach(ev =>
+    dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev =>
+    dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('drag'); }));
+  dropEl.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) setFile(f); });
+
+  async function setFile(f) {
+    if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) {
+      showMsg('Please choose a PDF file.', 'err');
+      return;
+    }
+    selectedFile = f;
+    fileInfo.innerHTML = '📄 <strong>' + escapeHtml(f.name) + '</strong> &middot; ' + fmtBytes(f.size);
+    if (!outNameEl.value) outNameEl.placeholder = suggestName(f.name);
+    currentBytes = await f.arrayBuffer();
+    update();
+  }
+
+  function downloadName() {
+    const base = outNameEl.value.trim() || suggestName(selectedFile ? selectedFile.name : 'cards');
+    return base.replace(/(\.pdf)?$/i, '.pdf');
+  }
+
+  // Recompose the PDF from the current file + settings and refresh the live preview.
+  // Runs automatically whenever the file or a setting changes.
+  async function update() {
+    if (!currentBytes) return;
+    const token = ++renderToken;
+    showMsg('Rendering preview…', '');
+    try {
+      const { bytes, layout, warnings } = await composePdf(PDFLib, {
+        inputBytes: currentBytes,
+        cardWin: parseFloat(cardWEl.value),
+        cardHin: parseFloat(cardHEl.value),
+        printMarginIn: parseFloat(printMarginEl.value),
+        gutterIn: parseFloat(gutterEl.value)
+      });
+      if (token !== renderToken) return;   // a newer change superseded this render
+
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      previewEl.src = lastUrl;
+      dlBtn.href = lastUrl;
+      dlBtn.download = downloadName();
+
+      renderSummary(layout, warnings);
+      if (warnings.length) showMsg(warnings.length + ' aspect-ratio warning(s) — see below.', 'warn');
+      else showMsg(layout.count + ' cards per sheet.', 'ok');
+    } catch (err) {
+      if (token !== renderToken) return;
+      console.error(err);
+      showMsg(err && err.message ? err.message : String(err), 'err');
+    }
+  }
+
+  function renderSummary(layout, warnings) {
+    document.getElementById('sCard').textContent = trim(layout.cardWin) + ' × ' + trim(layout.cardHin) + ' in';
+    document.getElementById('sSheet').textContent =
+      layout.orient + ' — ' + trim(layout.sheetWin) + ' × ' + trim(layout.sheetHin) + ' in';
+    document.getElementById('sGrid').textContent =
+      layout.cols + ' × ' + layout.rows + ' = ' + layout.count + ' cards per sheet';
+    document.getElementById('sMargin').textContent =
+      trim(layout.marginXin) + ' in sides · ' + trim(layout.marginYin) + ' in top/bottom' +
+      ' · ' + trim(layout.gutterIn) + ' in gutter (printer margin ' + trim(layout.printMarginIn) + ' in)';
+    const wEl = document.getElementById('sWarn');
+    if (warnings.length) { wEl.style.display = 'block'; wEl.innerHTML = '⚠ ' + warnings.map(escapeHtml).join('<br>⚠ '); }
+    else { wEl.style.display = 'none'; wEl.textContent = ''; }
+    summaryEl.classList.add('show');
+  }
+
+  function showTests() {
+    const results = runTests();
+    const passed = results.filter(t => t.pass).length;
+    const sumEl = document.getElementById('testSummary');
+    sumEl.textContent = passed + ' / ' + results.length + ' passed';
+    sumEl.style.color = passed === results.length ? 'var(--ok)' : 'var(--err)';
+    document.getElementById('testResults').innerHTML = results.map(t =>
+      '<div class="test ' + (t.pass ? 'pass' : 'fail') + '">' +
+        '<span class="tag">' + (t.pass ? 'PASS' : 'FAIL') + '</span>' +
+        '<span>' + escapeHtml(t.name) + '</span>' +
+        (t.detail ? '<span class="detail">— ' + escapeHtml(t.detail) + '</span>' : '') +
+      '</div>'
+    ).join('');
+    document.getElementById('testPanel').classList.add('show');
+  }
+
+  function showMsg(t, cls) { msgEl.textContent = t; msgEl.className = cls || ''; }
+
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+}
+</script>
+</body>
+</html>
