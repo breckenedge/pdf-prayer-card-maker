@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Single-file browser app that tiles a 2-page prayer-card PDF n-up for duplex printing.",
   "license": "MIT",
-  "homepage": "https://breckenedge.github.io/pdf-prayer-card-maker/",
+  "homepage": "https://www.breckenridge.dev/pdf-prayer-card-maker/",
   "repository": { "type": "git", "url": "git+https://github.com/breckenedge/pdf-prayer-card-maker.git" },
   "keywords": ["prayer-card", "holy-card", "pdf", "n-up", "imposition", "duplex", "printing"],
   "scripts": {

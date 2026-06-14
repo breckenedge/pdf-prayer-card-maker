@@ -4,7 +4,7 @@ A tiny, single-file web app that turns a **2‑page prayer‑card PDF** (page 1 
 image, page 2 = the back prayer) into a **print‑ready, n‑up duplex sheet** on US Letter —
 so you can print your own prayer cards at home, double‑sided, and cut them apart.
 
-**Live app:** https://breckenedge.github.io/pdf-prayer-card-maker/
+**Live app:** https://www.breckenridge.dev/pdf-prayer-card-maker/
 
 It runs entirely in your browser. Your PDF is **never uploaded** anywhere — all the work
 happens client‑side with [pdf-lib](https://pdf-lib.js.org/).
